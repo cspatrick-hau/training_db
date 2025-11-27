@@ -6,18 +6,23 @@ if (!isset($_SESSION['logged_in'])) {
 }
 
 include("mysqlConnection.php");
-// ADDING EMPLOYEE asdasdasdasd
-// Handle AJAX form submission
+
+
 if (isset($_POST['emp_name'])) {
     $emp_name  = $_POST['emp_name'];
     $dept_id   = $_POST['dept_id'];
     $salary    = $_POST['salary'];
     $is_active = $_POST['is_active'];
 
-    $sql = "INSERT INTO employees (emp_name, dept_id, salary, is_active)
-            VALUES ('$emp_name', '$dept_id', '$salary', '$is_active')";
+    // You need the department name for the SP
+    $dept_result = mysqli_query($connection, "SELECT dept_name FROM departments WHERE dept_id = $dept_id");
+    $dept_row = mysqli_fetch_assoc($dept_result);
+    $department = isset($dept_row['dept_name']) ? $dept_row['dept_name'] : '';
 
+    // Call the stored procedure
+    $sql = "CALL AddEmployee('$emp_name', '$department', $salary, $dept_id)";
     $result = mysqli_query($connection, $sql);
+
     if ($result) {
         echo json_encode(['success' => true, 'message' => 'Employee added successfully!']);
     } else {
@@ -26,7 +31,7 @@ if (isset($_POST['emp_name'])) {
     exit();
 }
 
-// Fetch all departments
+// Fetch all departments for the dropdown
 $dept_query = "SELECT * FROM departments";
 $dept_result = mysqli_query($connection, $dept_query);
 ?>
@@ -34,48 +39,18 @@ $dept_result = mysqli_query($connection, $dept_query);
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Add Employee (AJAX)</title>
+    <title>Add Employee (AJAX + SP)</title>
     <style>
-        body {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            font-family: Arial, sans-serif;
-            background-color: #f0f2f5;
-        }
-
-        .container {
-            background-color: #fff;
-            padding: 30px 40px;
-            border-radius: 10px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            width: 400px;
-            text-align: center;
-        }
-
+        body { display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; font-family: Arial, sans-serif; background-color: #f0f2f5; }
+        .container { background-color: #fff; padding: 30px 40px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); width: 400px; text-align: center; }
         h2 { margin-bottom: 25px; color: #333; }
         label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; }
         input, select { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 5px; font-size: 14px; box-sizing: border-box; }
         button.submit-btn { width: 100%; padding: 10px; background-color: #28a745; border: none; border-radius: 5px; color: white; font-size: 16px; cursor: pointer; }
         button.submit-btn:hover { background-color: #218838; }
-
-        .back-btn {
-            display: inline-block;
-            margin-top: 15px;
-            padding: 10px 20px;
-            background-color: #6c757d;
-            color: white;
-            text-decoration: none;
-            border-radius: 5px;
-        }
+        .back-btn { display: inline-block; margin-top: 15px; padding: 10px 20px; background-color: #6c757d; color: white; text-decoration: none; border-radius: 5px; }
         .back-btn:hover { background-color: #5a6268; }
-
-        .message {
-            margin-bottom: 15px;
-            font-weight: bold;
-        }
+        .message { margin-bottom: 15px; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -120,7 +95,7 @@ $dept_result = mysqli_query($connection, $dept_query);
 
 <script>
 document.getElementById('addEmployeeForm').addEventListener('submit', function(e) {
-    e.preventDefault(); // prevent form from submitting normally
+    e.preventDefault(); // prevent normal form submission
 
     const formData = new FormData(this);
 
@@ -134,7 +109,7 @@ document.getElementById('addEmployeeForm').addEventListener('submit', function(e
         if (data.success) {
             messageDiv.style.color = 'green';
             messageDiv.textContent = data.message;
-            this.reset(); // clear the form
+            this.reset();
         } else {
             messageDiv.style.color = 'red';
             messageDiv.textContent = data.message;

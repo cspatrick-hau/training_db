@@ -13,7 +13,10 @@ if (!isset($_SESSION['logged_in'])) {
 
 include("mysqlConnection.php");
 
-// Handle AJAX request to get employees
+
+// ------------------------------------------------------------
+// 1️⃣ AJAX REQUEST TO GET EMPLOYEES
+// ------------------------------------------------------------
 if (isset($_GET['ajax']) && $_GET['ajax'] == '1') {
     $sql = "SELECT e.emp_id, e.emp_name, d.dept_name, e.salary, e.is_active
             FROM employees e
@@ -31,20 +34,23 @@ if (isset($_GET['ajax']) && $_GET['ajax'] == '1') {
     exit();
 }
 
-// Handle AJAX request to delete an employee
 if (isset($_POST['delete_id'])) {
     $emp_id = intval($_POST['delete_id']);
-    $delete_sql = "DELETE FROM employees WHERE emp_id=$emp_id";
+
+    // ✅ This is where your stored procedure is called
+    $delete_sql = "CALL delete_employee_sp($emp_id)";
     $success = mysqli_query($connection, $delete_sql);
+
     echo json_encode(['success' => $success]);
     exit();
 }
-?>
 
+?>
 <!DOCTYPE html>
 <html>
 <head>
     <title>View Employees (AJAX Single File)</title>
+
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -88,7 +94,7 @@ if (isset($_POST['delete_id'])) {
         }
 
         button.delete-btn {
-            padding: 5px 10px;
+            padding: 6px 12px;
             background-color: #dc3545;
             color: white;
             border: none;
@@ -122,6 +128,7 @@ if (isset($_POST['delete_id'])) {
         }
     </style>
 </head>
+
 <body>
 
 <div class="container">
@@ -138,67 +145,75 @@ if (isset($_POST['delete_id'])) {
                 <th>Action</th>
             </tr>
         </thead>
+
         <tbody>
-            <!-- AJAX data will populate here -->
+            <!-- AJAX data loads here -->
         </tbody>
     </table>
 
-    <!-- Back to Dashboard Button -->
     <a href="dashboard.php" class="back-btn">← Back to Dashboard</a>
 </div>
 
+
 <script>
-    // Fetch and display employees
-    function fetchEmployees() {
-        fetch('?ajax=1')
-            .then(response => response.json())
-            .then(data => {
-                const tbody = document.querySelector('#employeesTable tbody');
-                tbody.innerHTML = '';
 
-                if (!Array.isArray(data) || data.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No employees found</td></tr>';
-                    return;
-                }
-
-                data.forEach(emp => {
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>${emp.emp_id}</td>
-                        <td>${emp.emp_name}</td>
-                        <td>${emp.dept_name ? emp.dept_name : ''}</td>
-                        <td>${emp.salary}</td>
-                        <td>${emp.is_active == 1 ? 'Yes' : 'No'}</td>
-                        <td><button class="delete-btn" onclick="deleteEmployee(${emp.emp_id})">Delete</button></td>
-                    `;
-                    tbody.appendChild(row);
-                });
-            })
-            .catch(err => console.error('Error fetching employees:', err));
-    }
-
-    // Delete employee via AJAX
-    function deleteEmployee(empId) {
-        if (!confirm("Are you sure you want to delete this employee?")) return;
-
-        fetch('', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: 'delete_id=' + empId
-        })
+function fetchEmployees() {
+    fetch('?ajax=1')
         .then(response => response.json())
         .then(data => {
-            if (data.success) {
-                fetchEmployees(); // refresh table after deletion
-            } else {
-                alert('Failed to delete employee.');
-            }
-        })
-        .catch(err => console.error('Error deleting employee:', err));
-    }
+            const tbody = document.querySelector('#employeesTable tbody');
+            tbody.innerHTML = '';
 
-    // Load employees on page load
-    window.onload = fetchEmployees;
+            if (!Array.isArray(data) || data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No employees found</td></tr>';
+                return;
+            }
+
+            data.forEach(emp => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${emp.emp_id}</td>
+                    <td>${emp.emp_name}</td>
+                    <td>${emp.dept_name ? emp.dept_name : ''}</td>
+                    <td>${emp.salary}</td>
+                    <td>${emp.is_active == 1 ? 'Yes' : 'No'}</td>
+                    <td><button class="delete-btn" onclick="deleteEmployee(${emp.emp_id})">Delete</button></td>
+                `;
+                tbody.appendChild(row);
+            });
+        })
+        .catch(err => console.error('Error fetching employees:', err));
+}
+
+
+// ------------------------------------------------------------
+// 4️⃣ DELETE EMPLOYEE (STORED PROCEDURE)
+// ------------------------------------------------------------
+function deleteEmployee(empId) {
+    if (!confirm("Are you sure you want to delete this employee?")) return;
+
+    fetch('', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'delete_id=' + empId
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            fetchEmployees(); // refresh table
+        } else {
+            alert('Failed to delete employee.');
+        }
+    })
+    .catch(err => console.error('Error deleting employee:', err));
+}
+
+
+// ------------------------------------------------------------
+// 5️⃣ LOAD EMPLOYEES ON PAGE LOAD
+// ------------------------------------------------------------
+window.onload = fetchEmployees;
+
 </script>
 
 </body>
