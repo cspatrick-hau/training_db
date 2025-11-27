@@ -7,6 +7,7 @@ if (!isset($_SESSION['logged_in'])) {
 
 include("mysqlConnection.php");
 // ADDING EMPLOYEE asdasdasd
+// ADDING EMPLOYEE asdasdasdasd
 // Handle AJAX form submission
 if (isset($_POST['emp_name'])) {
     $emp_name  = $_POST['emp_name'];
