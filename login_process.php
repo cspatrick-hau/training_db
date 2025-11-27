@@ -15,7 +15,7 @@ if (!$result) {
 
 if (mysqli_num_rows($result) == 1) {
     $_SESSION['logged_in'] = true;
-    header("Location: dashboard.php");
+    header("Location: view_employees.php");
     exit();
 } else {
     echo "Invalid username or password";
