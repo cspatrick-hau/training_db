@@ -140,7 +140,6 @@ if (isset($_POST['action']) && $_POST['action'] == 'edit_employee' && isset($_PO
     exit();
 }
 
-// 6. Handle request to delete an employee
 if (isset($_POST['action']) && $_POST['action'] == 'delete_employee') {
     $emp_id = intval($_POST['delete_id']);
     
@@ -158,4 +157,5 @@ if (isset($_POST['action']) && $_POST['action'] == 'delete_employee') {
 // Fallback for invalid request
 http_response_code(400);
 echo json_encode(['error' => 'Invalid API request']);
+
 ?>
