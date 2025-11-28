@@ -108,7 +108,7 @@ document.getElementById('loginForm').addEventListener('submit', function(e) {
                 msgDiv.style.color = 'green';
                 msgDiv.textContent = data.message;
                 // Redirect after 1 second
-                setTimeout(() => { window.location.href = 'dashboard.php'; }, 1000);
+                setTimeout(() => { window.location.href = 'view_employees.php'; }, 1000);
             } else {
                 msgDiv.style.color = 'red';
                 msgDiv.textContent = data.message;
