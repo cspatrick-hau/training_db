@@ -7,6 +7,12 @@ if (isset($_POST['username'])) {
     $username = $_POST['username'];
     $password = $_POST['password'];
 
+    // Server-side validation: only allow letters
+    if (!preg_match('/^[a-zA-Z]+$/', $username)) {
+        echo json_encode(['success' => false, 'message' => 'Username must contain only letters']);
+        exit();
+    }
+
     // Simple query without encryption for now
     $sql = "SELECT * FROM users WHERE username='$username' AND password='$password'";
     $result = mysqli_query($connection, $sql);
@@ -67,7 +73,7 @@ if (isset($_POST['username'])) {
 
     <form id="loginForm">
         <label>Username:</label>
-        <input type="text" name="username" required>
+        <input type="text" name="username" id="username" required pattern="[a-zA-Z]+" title="Username must contain only letters">
 
         <label>Password:</label>
         <input type="password" name="password" required>
@@ -84,6 +90,11 @@ if (isset($_POST['username'])) {
 </div>
 
 <script>
+// Prevent non-letter input in real-time
+document.getElementById('username').addEventListener('input', function(e) {
+    this.value = this.value.replace(/[^a-zA-Z]/g, '');
+});
+
 document.getElementById('loginForm').addEventListener('submit', function(e) {
     e.preventDefault(); // stop page from reloading
 
@@ -97,7 +108,7 @@ document.getElementById('loginForm').addEventListener('submit', function(e) {
                 msgDiv.style.color = 'green';
                 msgDiv.textContent = data.message;
                 // Redirect after 1 second
-                setTimeout(() => { window.location.href = 'view_employees.php'; }, 1000);
+                setTimeout(() => { window.location.href = 'dashboard.php'; }, 1000);
             } else {
                 msgDiv.style.color = 'red';
                 msgDiv.textContent = data.message;

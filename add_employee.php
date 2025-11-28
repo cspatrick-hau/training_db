@@ -7,21 +7,42 @@ if (!isset($_SESSION['logged_in'])) {
 
 include("mysqlConnection.php");
 
+if (isset($_GET['ajax']) && $_GET['ajax'] == '1') {
+    $dept_query = "SELECT dept_id, dept_name FROM departments ORDER BY dept_name";
+    $dept_result = mysqli_query($connection, $dept_query);
+    
+    $departments = [];
+    while ($row = mysqli_fetch_assoc($dept_result)) {
+        $departments[] = $row;
+    }
+    
+    header('Content-Type: application/json');
+    echo json_encode(['departments' => $departments]);
+    exit();
+}
+
 
 if (isset($_POST['emp_name'])) {
-    $emp_name  = $_POST['emp_name'];
-    $dept_id   = $_POST['dept_id'];
-    $salary    = $_POST['salary'];
-    $is_active = $_POST['is_active'];
+    $emp_name  = mysqli_real_escape_string($connection, $_POST['emp_name']);
+    $dept_id   = intval($_POST['dept_id']);
+    $salary    = floatval($_POST['salary']);
+    $is_active = intval($_POST['is_active']);
 
-    // You need the department name for the SP
+
     $dept_result = mysqli_query($connection, "SELECT dept_name FROM departments WHERE dept_id = $dept_id");
     $dept_row = mysqli_fetch_assoc($dept_result);
-    $department = isset($dept_row['dept_name']) ? $dept_row['dept_name'] : '';
+    $department = isset($dept_row['dept_name']) ? mysqli_real_escape_string($connection, $dept_row['dept_name']) : '';
 
-    // Call the stored procedure
     $sql = "CALL AddEmployee('$emp_name', '$department', $salary, $dept_id)";
     $result = mysqli_query($connection, $sql);
+    
+
+    if ($result) {
+        $last_id = mysqli_insert_id($connection);
+        if ($is_active != 1) {  // Only update if not active (default is usually 1)
+            mysqli_query($connection, "UPDATE employees SET is_active = $is_active WHERE emp_id = $last_id");
+        }
+    }
 
     if ($result) {
         echo json_encode(['success' => true, 'message' => 'Employee added successfully!']);
@@ -31,6 +52,9 @@ if (isset($_POST['emp_name'])) {
     exit();
 }
 
+// ============================================
+// NORMAL REQUEST: Show full HTML page
+// ============================================
 // Fetch all departments for the dropdown
 $dept_query = "SELECT * FROM departments";
 $dept_result = mysqli_query($connection, $dept_query);
@@ -39,12 +63,12 @@ $dept_result = mysqli_query($connection, $dept_query);
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Add Employee (AJAX + SP)</title>
+    <title>Add Employee</title>
     <style>
         body { display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; font-family: Arial, sans-serif; background-color: #f0f2f5; }
         .container { background-color: #fff; padding: 30px 40px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); width: 400px; text-align: center; }
         h2 { margin-bottom: 25px; color: #333; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; text-align: left; }
         input, select { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 5px; font-size: 14px; box-sizing: border-box; }
         button.submit-btn { width: 100%; padding: 10px; background-color: #28a745; border: none; border-radius: 5px; color: white; font-size: 16px; cursor: pointer; }
         button.submit-btn:hover { background-color: #218838; }
@@ -62,7 +86,14 @@ $dept_result = mysqli_query($connection, $dept_query);
 
     <form id="addEmployeeForm">
         <label>Employee Name:</label>
-        <input type="text" name="emp_name" required>
+        <input 
+    type="text" 
+    pattern="[A-Za-z\s]+" 
+    title="Only letters and spaces allowed"
+    minlength="2"
+    maxlength="100"
+    required
+>
 
         <label>Department:</label>
         <select name="dept_id" required>
@@ -95,7 +126,7 @@ $dept_result = mysqli_query($connection, $dept_query);
 
 <script>
 document.getElementById('addEmployeeForm').addEventListener('submit', function(e) {
-    e.preventDefault(); // prevent normal form submission
+    e.preventDefault();
 
     const formData = new FormData(this);
 
