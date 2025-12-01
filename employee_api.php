@@ -7,21 +7,15 @@ if (!isset($_SESSION['logged_in'])) {
     exit();
 }
 
-
 include("mysqlConnection.php"); 
-
 
 header('Content-Type: application/json');
 
 // --- API Endpoints ---
 
 if (isset($_GET['action']) && $_GET['action'] == 'fetch_employees') {
-    $sql = "SELECT e.emp_id, e.emp_name, d.dept_name, e.dept_id, e.salary, e.is_active
-            FROM employees e
-            LEFT JOIN departments d ON e.dept_id = d.dept_id
-            ORDER BY e.emp_id ASC";
-    $result = mysqli_query($connection, $sql);
-
+    $result = mysqli_query($connection, "CALL sp_fetch_employees()");
+    
     $employees = [];
     while ($row = mysqli_fetch_assoc($result)) {
         $employees[] = $row;
@@ -31,10 +25,8 @@ if (isset($_GET['action']) && $_GET['action'] == 'fetch_employees') {
     exit();
 }
 
-
 if (isset($_GET['action']) && $_GET['action'] == 'fetch_departments') {
-    $sql = "SELECT dept_id, dept_name FROM departments ORDER BY dept_name ASC";
-    $result = mysqli_query($connection, $sql);
+    $result = mysqli_query($connection, "CALL sp_fetch_departments()");
     
     $departments = [];
     while ($row = mysqli_fetch_assoc($result)) {
@@ -45,15 +37,10 @@ if (isset($_GET['action']) && $_GET['action'] == 'fetch_departments') {
     exit();
 }
 
-
 if (isset($_GET['action']) && $_GET['action'] == 'fetch_single_employee' && isset($_GET['emp_id'])) {
     $emp_id = intval($_GET['emp_id']);
     
-    $sql = "SELECT emp_id, emp_name, dept_id, salary, is_active 
-            FROM employees 
-            WHERE emp_id = $emp_id";
-    
-    $result = mysqli_query($connection, $sql);
+    $result = mysqli_query($connection, "CALL sp_fetch_single_employee($emp_id)");
     
     if (!$result) {
         http_response_code(500); 
@@ -67,43 +54,36 @@ if (isset($_GET['action']) && $_GET['action'] == 'fetch_single_employee' && isse
     exit(); 
 }
 
-
 if (isset($_POST['action']) && $_POST['action'] == 'add_employee') {
     $emp_name = mysqli_real_escape_string($connection, $_POST['emp_name']);
     $dept_id = intval($_POST['dept_id']);
     $salary = floatval($_POST['salary']);
     $is_active = intval($_POST['is_active']);
-    
-    // CHECK IF EMPLOYEE ALREADY EXISTS
-    $check_sql = "SELECT emp_id FROM employees WHERE emp_name = '$emp_name'";
-    $check_result = mysqli_query($connection, $check_sql);
-    
-    if (mysqli_num_rows($check_result) > 0) {
-        echo json_encode(['success' => false, 'message' => 'Employee with this name already exists!']);
-        exit();
+
+    // Get department name
+    $dept_result = mysqli_query($connection, "CALL sp_fetch_departments()");
+    $department = '';
+    while ($dept_row = mysqli_fetch_assoc($dept_result)) {
+        if ($dept_row['dept_id'] == $dept_id) {
+            $department = $dept_row['dept_name'];
+            break;
+        }
     }
+    mysqli_free_result($dept_result);
+    mysqli_next_result($connection); // Clear result set
     
+    $department = mysqli_real_escape_string($connection, $department);
 
-    $dept_result = mysqli_query($connection, "SELECT dept_name FROM departments WHERE dept_id = $dept_id");
-    $dept_row = mysqli_fetch_assoc($dept_result);
-    $department = isset($dept_row['dept_name']) ? mysqli_real_escape_string($connection, $dept_row['dept_name']) : '';
-
-
-    $sql = "CALL AddEmployee('$emp_name', '$department', $salary, $dept_id)";
-    $result = mysqli_query($connection, $sql);
+    $result = mysqli_query($connection, "CALL AddEmployee('$emp_name', '$department', $salary, $dept_id, $is_active)");
     
     if ($result) {
-        $last_id = mysqli_insert_id($connection);
-        if ($is_active != 1) {
-            mysqli_query($connection, "UPDATE employees SET is_active = $is_active WHERE emp_id = $last_id");
-        }
-        echo json_encode(['success' => true, 'message' => 'Employee added successfully!']);
+        $row = mysqli_fetch_assoc($result);
+        echo json_encode(['success' => (bool)$row['success'], 'message' => $row['message']]);
     } else {
         echo json_encode(['success' => false, 'message' => 'Error: '.mysqli_error($connection)]);
     }
     exit();
 }
-
 
 if (isset($_POST['action']) && $_POST['action'] == 'edit_employee' && isset($_POST['emp_id'])) {
     $emp_id = intval($_POST['emp_id']);
@@ -111,31 +91,14 @@ if (isset($_POST['action']) && $_POST['action'] == 'edit_employee' && isset($_PO
     $dept_id = intval($_POST['dept_id']);
     $salary = floatval($_POST['salary']);
     $is_active = intval($_POST['is_active']);
-    
-    // CHECK IF EMPLOYEE NAME ALREADY EXISTS (excluding current employee)
-    $check_sql = "SELECT emp_id FROM employees WHERE emp_name = '$emp_name' AND emp_id != $emp_id";
-    $check_result = mysqli_query($connection, $check_sql);
-    
-    if (mysqli_num_rows($check_result) > 0) {
-        echo json_encode(['success' => false, 'message' => 'Another employee with this name already exists!']);
-        exit();
-    }
-    
-    $sql = "CALL sp_edit_employee($emp_id, '$emp_name', $dept_id, $salary, $is_active)";
-    $result = mysqli_query($connection, $sql);
+
+    $result = mysqli_query($connection, "CALL sp_edit_employee($emp_id, '$emp_name', $dept_id, $salary, $is_active)");
     
     if ($result) {
         $row = mysqli_fetch_assoc($result);
-        echo json_encode(['success' => $row['success'], 'message' => $row['message']]);
+        echo json_encode(['success' => (bool)$row['success'], 'message' => $row['message']]);
     } else {
-
-        mysqli_query($connection, "UPDATE employees SET emp_name='$emp_name', dept_id=$dept_id, salary=$salary, is_active=$is_active WHERE emp_id=$emp_id");
-        
-        if (mysqli_affected_rows($connection) > 0 || mysqli_errno($connection) == 0) {
-            echo json_encode(['success' => true, 'message' => 'Employee updated successfully!']);
-        } else {
-            echo json_encode(['success' => false, 'message' => 'Error: '.mysqli_error($connection)]);
-        }
+        echo json_encode(['success' => false, 'message' => 'Error: '.mysqli_error($connection)]);
     }
     exit();
 }
@@ -143,11 +106,11 @@ if (isset($_POST['action']) && $_POST['action'] == 'edit_employee' && isset($_PO
 if (isset($_POST['action']) && $_POST['action'] == 'delete_employee') {
     $emp_id = intval($_POST['delete_id']);
     
-    $delete_sql = "DELETE FROM employees WHERE emp_id=$emp_id";
-    $success = mysqli_query($connection, $delete_sql);
+    $result = mysqli_query($connection, "CALL delete_employee_sp($emp_id)");
     
-    if ($success) {
-        echo json_encode(['success' => true, 'message' => 'Employee deleted successfully!']);
+    if ($result) {
+        $row = mysqli_fetch_assoc($result);
+        echo json_encode(['success' => (bool)$row['success'], 'message' => $row['message']]);
     } else {
         echo json_encode(['success' => false, 'message' => 'Error: '.mysqli_error($connection)]);
     }
@@ -157,5 +120,4 @@ if (isset($_POST['action']) && $_POST['action'] == 'delete_employee') {
 // Fallback for invalid request
 http_response_code(400);
 echo json_encode(['error' => 'Invalid API request']);
-
 ?>

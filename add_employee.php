@@ -45,15 +45,6 @@ if (isset($_POST['edit_employee']) && isset($_POST['emp_id'])) {
     $salary = floatval($_POST['salary']);
     $is_active = intval($_POST['is_active']);
     
-    // CHECK IF EMPLOYEE NAME ALREADY EXISTS (excluding current employee)
-    $check_sql = "SELECT emp_id FROM employees WHERE emp_name = '$emp_name' AND emp_id != $emp_id";
-    $check_result = mysqli_query($connection, $check_sql);
-    
-    if (mysqli_num_rows($check_result) > 0) {
-        header('Content-Type: application/json');
-        echo json_encode(['success' => false, 'message' => 'Another employee with this name already exists!']);
-        exit();
-    }
 
     $sql = "CALL sp_edit_employee($emp_id, '$emp_name', $dept_id, $salary, $is_active)";
     $result = mysqli_query($connection, $sql);
@@ -83,21 +74,11 @@ if (isset($_POST['emp_name']) && !isset($_POST['edit_employee'])) {
     $salary    = floatval($_POST['salary']);
     $is_active = intval($_POST['is_active']);
 
-    // CHECK IF EMPLOYEE ALREADY EXISTS
-    $check_sql = "SELECT emp_id FROM employees WHERE emp_name = '$emp_name'";
-    $check_result = mysqli_query($connection, $check_sql);
-    
-    if (mysqli_num_rows($check_result) > 0) {
-        header('Content-Type: application/json');
-        echo json_encode(['success' => false, 'message' => 'Employee with this name already exists!']);
-        exit();
-    }
-
     $dept_result = mysqli_query($connection, "SELECT dept_name FROM departments WHERE dept_id = $dept_id");
     $dept_row = mysqli_fetch_assoc($dept_result);
     $department = isset($dept_row['dept_name']) ? mysqli_real_escape_string($connection, $dept_row['dept_name']) : '';
 
-    $sql = "CALL AddEmployee('$emp_name', '$department', $salary, $dept_id)";
+    $sql = "CALL AddEmployee('$emp_name', '$department', $salary, $dept_id, $is_active)";
     $result = mysqli_query($connection, $sql);
     
     if ($result) {
