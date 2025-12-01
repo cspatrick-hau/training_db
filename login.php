@@ -1,29 +1,7 @@
 <?php
 session_start();
-include("mysqlConnection.php"); // your database connection
-
-// Handle AJAX login
-if (isset($_POST['username'])) {
-    $username = $_POST['username'];
-    $password = $_POST['password'];
-
-    // Server-side validation: only allow letters
-    if (!preg_match('/^[a-zA-Z]+$/', $username)) {
-        echo json_encode(['success' => false, 'message' => 'Username must contain only letters']);
-        exit();
-    }
-
-    // Simple query without encryption for now
-    $sql = "SELECT * FROM users WHERE username='$username' AND password='$password'";
-    $result = mysqli_query($connection, $sql);
-
-    if ($result && mysqli_num_rows($result) > 0) {
-        $_SESSION['logged_in'] = true;
-        $_SESSION['username'] = $username;
-        echo json_encode(['success' => true, 'message' => 'Login successful!']);
-    } else {
-        echo json_encode(['success' => false, 'message' => 'Invalid username or password']);
-    }
+if (isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true) {
+    header("Location: view_employees.php");
     exit();
 }
 ?>
@@ -42,7 +20,6 @@ if (isset($_POST['username'])) {
             font-family: Arial, sans-serif;
             background-color: #f0f2f5;
         }
-
         .login-container {
             background-color: #fff;
             padding: 30px 40px;
@@ -51,7 +28,6 @@ if (isset($_POST['username'])) {
             width: 350px;
             text-align: center;
         }
-
         h2 { margin-bottom: 25px; color: #333; }
         label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; }
         input { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 5px; font-size: 14px; }
@@ -63,6 +39,7 @@ if (isset($_POST['username'])) {
         .message { margin-bottom: 15px; font-weight: bold; }
         .footer { text-align: center; margin-top: 10px; font-size: 12px; color: #888; }
     </style>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
 </head>
 <body>
 
@@ -76,7 +53,7 @@ if (isset($_POST['username'])) {
         <input type="text" name="username" id="username" required pattern="[a-zA-Z]+" title="Username must contain only letters">
 
         <label>Password:</label>
-        <input type="password" name="password" required>
+        <input type="password" name="password" id="password" required>
 
         <button type="submit">Login</button>
     </form>
@@ -91,30 +68,35 @@ if (isset($_POST['username'])) {
 
 <script>
 // Prevent non-letter input in real-time
-document.getElementById('username').addEventListener('input', function(e) {
+$('#username').on('input', function() {
     this.value = this.value.replace(/[^a-zA-Z]/g, '');
 });
 
-document.getElementById('loginForm').addEventListener('submit', function(e) {
-    e.preventDefault(); // stop page from reloading
+// AJAX login via employee_api.php
+$('#loginForm').submit(function(e) {
+    e.preventDefault();
+    var formData = $(this).serialize() + '&action=login';
 
-    const formData = new FormData(this);
-
-    fetch('', { method: 'POST', body: formData })
-        .then(response => response.json())
-        .then(data => {
-            const msgDiv = document.getElementById('message');
-            if (data.success) {
-                msgDiv.style.color = 'green';
-                msgDiv.textContent = data.message;
-                // Redirect after 1 second
+    $.ajax({
+        url: 'employee_api.php',
+        type: 'POST',
+        data: formData,
+        dataType: 'json',
+        success: function(data) {
+            const msgDiv = $('#message');
+            if (data.success == 1) {
+                msgDiv.css('color', 'green').text(data.message);
                 setTimeout(() => { window.location.href = 'view_employees.php'; }, 1000);
             } else {
-                msgDiv.style.color = 'red';
-                msgDiv.textContent = data.message;
+                msgDiv.css('color', 'red').text(data.message);
+                $('#password').val('');
             }
-        })
-        .catch(err => console.error('Error:', err));
+        },
+        error: function(err) {
+            console.error('Error:', err);
+            $('#message').css('color', 'red').text('Server error occurred.');
+        }
+    });
 });
 </script>
 

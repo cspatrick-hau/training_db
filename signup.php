@@ -24,7 +24,7 @@ if (isset($_POST['username'])) {
             $insert = mysqli_query($connection, "INSERT INTO users (username, password) VALUES ('$username', '$password')");
             if ($insert) {
                 $response['success'] = true;
-                $response['message'] = "Account created successfully! You can now <a href='ajax_login.php'>Login</a>.";
+                $response['message'] = "Account created successfully! You can now <a href='login.php'>Login</a>.";
             } else {
                 $response['message'] = "Error: " . mysqli_error($connection);
             }
@@ -39,7 +39,7 @@ if (isset($_POST['username'])) {
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Sign Up (AJAX)</title>
+    <title>Sign Up</title>
     <style>
         body {
             display: flex;

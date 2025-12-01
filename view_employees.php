@@ -256,6 +256,21 @@ if (!isset($_SESSION['logged_in'])) {
         .btn-cancel:hover {
             background-color: #5a6268;
         }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #007bff;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
@@ -283,7 +298,7 @@ if (!isset($_SESSION['logged_in'])) {
         </tbody>
     </table>
 
-    <a href="login.php" class="back-btn">Logout</a>
+    <a href="logout.php" class="back-btn">Logout</a>
 </div>
 
 
@@ -374,6 +389,11 @@ if (!isset($_SESSION['logged_in'])) {
 
     // Fetch and display employees
     function fetchEmployees() {
+
+        // Show loading message
+        var tbody = $('#employeesTable tbody');
+        tbody.html('<tr><td colspan="6" style="text-align:center;">⏳ Loading employees...</td></tr>');
+        
         $.ajax({
             url: 'employee_api.php?action=fetch_employees',
             type: 'GET',

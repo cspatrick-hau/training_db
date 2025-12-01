@@ -1,17 +1,51 @@
 <?php
-// Start session and check authentication
 session_start();
-if (!isset($_SESSION['logged_in'])) {
+
+// Allow login without authentication
+$isLoginRequest = (isset($_POST['action']) && $_POST['action'] == 'login');
+
+if (!$isLoginRequest && !isset($_SESSION['logged_in'])) {
     http_response_code(401);
     echo json_encode(['error' => 'Not logged in']);
     exit();
 }
 
 include("mysqlConnection.php"); 
-
 header('Content-Type: application/json');
 
-// --- API Endpoints ---
+// --- LOGIN ---
+if ($isLoginRequest) {
+    // Remove the duplicate session_start() that was here
+    $username = mysqli_real_escape_string($connection, $_POST['username']);
+    $password = mysqli_real_escape_string($connection, $_POST['password']);
+    
+    // Only letters allowed
+    if (!preg_match('/^[a-zA-Z]+$/', $username)) {
+        echo json_encode(['success' => false, 'message' => 'Username must contain only letters']);
+        exit();
+    }
+
+    $result = mysqli_query($connection, "CALL sp_login_user('$username', '$password')");
+
+    if (!$result) {
+        echo json_encode(['success' => false, 'message' => 'Database error: '.mysqli_error($connection)]);
+        exit();
+    }
+
+    $row = mysqli_fetch_assoc($result);
+
+    if ($row['success'] == 1) {
+        $_SESSION['logged_in'] = true;
+        $_SESSION['username'] = $username;
+    }
+
+    echo json_encode($row);
+
+    mysqli_free_result($result);
+    mysqli_next_result($connection);
+    exit();
+}
+
 
 if (isset($_GET['action']) && $_GET['action'] == 'fetch_employees') {
     $result = mysqli_query($connection, "CALL sp_fetch_employees()");
